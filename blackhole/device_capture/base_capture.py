@@ -78,4 +78,3 @@ class BaseCaptureThread(Thread):
         finally:
             self.dataToExport = list(self.capturedTrackingData)
             self.cleanup()
-
