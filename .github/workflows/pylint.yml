@@ -39,7 +39,7 @@ jobs:
     # venv as a `.venv` in your testing directory, which allows the next step to easily
     # cache it.
     - name: Install poetry
-    - uses: snok/install-poetry@v1
+      uses: snok/install-poetry@v1
       with:
         version: 1.1.12
         virtualenvs-create: true
