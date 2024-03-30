@@ -23,7 +23,7 @@ jobs:
     # number in the cache key, and the "-0" suffix: this allows you to invalidate the cache
     # manually if/when you want to upgrade Poetry, or if something goes wrong. This could be
     # mildly cleaner by using an environment variable, but I don't really care.
-    - name: cache poetry install
+    - name: Cache poetry install
       uses: actions/cache@v2
       with:
         path: ~/.local
@@ -38,6 +38,7 @@ jobs:
     # The key configuration value here is `virtualenvs-in-project: true`: this creates the
     # venv as a `.venv` in your testing directory, which allows the next step to easily
     # cache it.
+    - name: Install poetry
     - uses: snok/install-poetry@v1
       with:
         version: 1.1.12
@@ -47,7 +48,7 @@ jobs:
     # Cache your dependencies (i.e. all the stuff in your `pyproject.toml`). Note the cache
     # key: if you're using multiple Python versions, or multiple OSes, you'd need to include
     # them in the cache key. I'm not, so it can be simple and just depend on the poetry.lock.
-    - name: cache deps
+    - name: Cache dependencies
       id: cache-deps
       uses: actions/cache@v2
       with:
@@ -63,11 +64,12 @@ jobs:
         poetry run pip install pylint
       if: steps.cache-deps.outputs.cache-hit != 'true'
 
-      # Now install _your_ project. This isn't necessary for many types of projects -- particularly
-      # things like Django apps don't need this. But it's a good idea since it fully-exercises the
-      # pyproject.toml and makes that if you add things like console-scripts at some point that
-      # they'll be installed and working.
-          - run: poetry install --no-interaction
+    # Now install _your_ project. This isn't necessary for many types of projects -- particularly
+    # things like Django apps don't need this. But it's a good idea since it fully-exercises the
+    # pyproject.toml and makes that if you add things like console-scripts at some point that
+    # they'll be installed and working.
+    - name: Install project
+      run: poetry install --no-interaction
 
     - name: Analysing the code with pylint
       run: |
