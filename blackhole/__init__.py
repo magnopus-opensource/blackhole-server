@@ -13,7 +13,4 @@
 # limitations under the License.
 
 import sys
-import logging
 from blackhole.server import blackhole_api
-
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)

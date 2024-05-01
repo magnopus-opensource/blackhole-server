@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import uvicorn
+import logging
 from blackhole.server import blackhole_api
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 uvicorn.run(blackhole_api, host="0.0.0.0", port = 8000)
