@@ -20,9 +20,11 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+FREED_PACKET_SIZE = 29 # All FreeD position/orientation data is sent in 29-byte packets.
+
 class FreeDPacket():
     def __init__(self, packetData : bytes):
-        if len(packetData) != 29:
+        if len(packetData) != FREED_PACKET_SIZE:
             logger.error("FreeD camera transform packet must contain 29 bytes.")
             return
 
@@ -76,6 +78,10 @@ class FreeDPacket():
         return sum == 0
     
 class FreeDCaptureThread(BaseCaptureThread):
+    @property
+    def packet_size(self):
+        return FREED_PACKET_SIZE
+
     def packageFrameData(self, packet : FreeDPacket):
         data = dict()
 

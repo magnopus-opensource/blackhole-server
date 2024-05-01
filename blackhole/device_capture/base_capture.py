@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import ABC, abstractmethod
 from threading import Thread, Event
-from typing import Callable
 import select
 import socket
 
-class BaseCaptureThread(Thread):
+class BaseCaptureThread(Thread, ABC):
     def __init__(self, frameRate : int, deviceName : str, socket : socket, stopEvent : Event):
         super().__init__()
         self.listeningSocket = socket
@@ -30,25 +30,36 @@ class BaseCaptureThread(Thread):
 
         self.stopEvent = stopEvent
 
+    @property
+    @abstractmethod
+    def packet_size(self):
+        """
+        Property expressing the size of packets sent over the network by the hardware. Must be
+        defined by subclasses.
+        """
+        pass
+
+    @abstractmethod
     def parsePacket(self, packetBytes):
         """
         Used to process the raw bytes of a packet sent by your device into an object containing
-        the transform information of a frame. Should be overridden by inherting classes.
+        the transform information of a frame. Must be implemented by subclasses.
         """
-        return packetBytes
+        pass
     
+    @abstractmethod
     def validateParsedData(self, parsedPacket):
         """
-        Used to validate the results of a call to parsePacket. Should be overridden by
-        inheriting classes.
+        Used to validate the results of a call to parsePacket. Must be implemented by
+        subclasses.
         """
-        return False
+        pass
     
     def cacheParsedData(self, parsedPacket):
         """
         Used to append parsed frame data to the list of data collected so far. This should take the
         form of a dictionary with key-value pairs for X,Y,Z position and rotation, and the timecode
-        as frames (see BlackholeConstants for what keys to use). Should be overridden by inheriting classes. 
+        as frames (see BlackholeConstants for what keys to use).
         """
         self.capturedTrackingData.append(parsedPacket)
 
@@ -65,7 +76,7 @@ class BaseCaptureThread(Thread):
                 ready, _, _ = select.select([self.listeningSocket], [], [], 1)
                 
                 for sock in ready:
-                    packet = sock.recv(1024)
+                    packet = sock.recv(self.packet_size)
 
                     trackingData = self.parsePacket(packet)
                     
