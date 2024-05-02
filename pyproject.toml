@@ -15,6 +15,8 @@ include = [
     "blackhole_config/*"
 ]
 
+[tool.poetry.scripts]
+start-blackhole = "blackhole.launch:start_server"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
