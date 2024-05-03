@@ -16,6 +16,7 @@ from .base_capture import BaseCaptureThread
 from blackhole.constants import *
 import blackhole.database_utils as utils
 import logging
+import struct
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -30,25 +31,41 @@ class FreeDPacket():
 
         self.packetBytes = packetData
 
-        self.cam_id = int.from_bytes(self.packetBytes[1:2], byteorder='big')
+        # Format string for unpacking the packet byte array:
+        packet_format = '!cc3s3s3s3s3s3s3s3s2sc'
+        
+        (message_type_byte,
+          camera_id_byte, 
+          pan_bytes, 
+          tilt_bytes, 
+          roll_bytes, 
+          x_bytes, 
+          y_bytes, 
+          z_bytes, 
+          zoom_byte, 
+          focus_byte, 
+          spare_bytes, 
+          checksum_byte) = struct.unpack(packet_format, self.packetBytes)
+
+        self.cam_id = int.from_bytes(camera_id_byte, byteorder='big')
         
         # All rotation values are expressed in degrees ranging from -180 t0 180
-        self.rot_pan = self.getFreeDFloat(self.packetBytes[2:5], 15)
-        self.rot_tilt = self.getFreeDFloat(self.packetBytes[5:8], 15)
-        self.rot_roll = self.getFreeDFloat(self.packetBytes[8:11], 15)
+        self.rot_pan = self.getFreeDFloat(pan_bytes, 15)
+        self.rot_tilt = self.getFreeDFloat(tilt_bytes, 15)
+        self.rot_roll = self.getFreeDFloat(roll_bytes, 15)
 
         # All position values are expressed in millimeters
-        self.pos_x = self.getFreeDFloat(self.packetBytes[11:14], 6)
-        self.pos_y = self.getFreeDFloat(self.packetBytes[14:17], 6)
-        self.pos_z = self.getFreeDFloat(self.packetBytes[17:20], 6)
+        self.pos_x = self.getFreeDFloat(x_bytes, 6)
+        self.pos_y = self.getFreeDFloat(y_bytes, 6)
+        self.pos_z = self.getFreeDFloat(z_bytes, 6)
 
         # Zoom and focus are unsigned values of arbitrary units to be
         # interpreted by whatever system you use
-        self.zoom = int.from_bytes(self.packetBytes[20:23], byteorder='big')
-        self.focus = int.from_bytes(self.packetBytes[23:26], byteorder='big')
+        self.zoom = int.from_bytes(zoom_byte, byteorder='big')
+        self.focus = int.from_bytes(focus_byte, byteorder='big')
 
-        self.spare = int.from_bytes(self.packetBytes[26:28], byteorder='big')
-        self.checksum = int(self.packetBytes[28])
+        self.spare = int.from_bytes(spare_bytes, byteorder='big')
+        self.checksum = int.from_bytes(checksum_byte, byteorder='big')
 
     def __str__(self):
         return (
@@ -70,6 +87,12 @@ class FreeDPacket():
         return fractional
 
     def checksumValid(self):
+        '''
+        The checksum of FreeD packets is calculated by subtracting (mod 256)
+        each byte of the packet from 0x40. Including the checksum byte itself
+        in this calculation should result in a value of 0 if the packet is valid.
+        '''
+
         sum = 0x40
 
         for byte in self.packetBytes:
