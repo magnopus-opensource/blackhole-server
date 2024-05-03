@@ -16,12 +16,15 @@ from abc import ABC, abstractmethod
 from threading import Thread, Event
 import select
 import socket
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class BaseCaptureThread(Thread, ABC):
-    def __init__(self, frameRate : int, deviceName : str, socket : socket, stopEvent : Event):
+    def __init__(self, frameRate : int, deviceName : str, port: int, socket : socket, stopEvent : Event):
         super().__init__()
-        self.listeningSocket = socket
-        
+
         self.deviceName = deviceName
         self.frameRate = frameRate
 
@@ -29,6 +32,16 @@ class BaseCaptureThread(Thread, ABC):
         self.dataToExport = None
 
         self.stopEvent = stopEvent
+
+        try:
+            self.listeningSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.listeningSocket.bind("", port)
+
+        except socket.gaierror:
+            logger.error(f"Tracking device '{deviceName}' cannot resolve with Port={port}. Please check config/deviceConfig.ini.")
+            self.initialized = False
+
+        self.initialized = True
 
     @property
     @abstractmethod
@@ -67,12 +80,15 @@ class BaseCaptureThread(Thread, ABC):
         """
         Used to clean up any remaining resources being used by the thread after capture has stopped.
         """
+        if not self.initialized:
+            return
+
         self.listeningSocket.shutdown(socket.SHUT_RDWR)
         self.listeningSocket.close()
 
     def run(self):
         try:
-            while not self.stopEvent.is_set():
+            while self.initialized and not self.stopEvent.is_set():
                 ready, _, _ = select.select([self.listeningSocket], [], [], 1)
                 
                 for sock in ready:

@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base_capture import BaseCaptureThread
+from .base_capture import BaseCaptureThread, logger
 from blackhole.constants import *
 import blackhole.database_utils as utils
 import logging
 import struct
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 FREED_PACKET_SIZE = 29 # All FreeD position/orientation data is sent in 29-byte packets.
 

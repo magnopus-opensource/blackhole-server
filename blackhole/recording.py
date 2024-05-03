@@ -59,25 +59,17 @@ class Recording(Thread):
 
         for deviceName in self._deviceConfig.sections():
             try:
-                discoveredIP = self._deviceConfig[deviceName]["IP_ADDRESS"]
                 discoveredPort = int(self._deviceConfig[deviceName]["PORT"])
                 protocol = self._deviceConfig[deviceName]["TRACKING_PROTOCOL"]
 
-                captureThreadSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                captureThreadSocket.bind(("", discoveredPort))
-
                 captureModule = importlib.import_module(f"blackhole.device_capture.{protocol.lower()}_capture")
                 captureThreadClass = getattr(captureModule, "{0}CaptureThread".format(protocol))
-                captureThreadInstance = captureThreadClass(self.frameRate, deviceName, captureThreadSocket, self._stopEvent)
+                captureThreadInstance = captureThreadClass(self.frameRate, deviceName, discoveredPort, self._stopEvent)
                 
                 captureThreads.append(captureThreadInstance)
             
             except KeyError as e:
                 logger.error("Can't find key {0}, skipping. \n-----> Please add {0} to config/deviceConfig.ini under the section labled {1}".format(e, deviceName))
-                continue
-            except socket.gaierror:
-                logger.error(f"Tracking device '{deviceName}' cannot resolve with IP={discoveredIP}, Port={discoveredPort}. Please check config/deviceConfig.ini.")
-                captureThreadSocket.close()
                 continue
         
         for thread in captureThreads:
