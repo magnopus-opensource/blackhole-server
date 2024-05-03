@@ -27,22 +27,18 @@ logger = logging.getLogger(__name__)
 
 def getSystemTimecodeAsFrames(frameRate : int):
     """
-    Get the current timecode derived from system time. Must be provided a frame rate. 
+    Get the current timecode as a frame count, derived from system time. Must be provided a frame rate. 
 
-    :return The timecode representation as both frames and as a SMPTE-style string.
-    :rtype tuple
+    :return The current system time as a frame count. Will account for drop-frame timecodes.
+    :rtype int
 
     """
     systemTime = datetime.now()
-    
-    secondsFraction = float(systemTime.strftime(("%f"))) / 1000000.0
-    frame = int(secondsFraction * float(frameRate))
 
-    truncatedTime = systemTime.strftime("%X")
-    timecodeString = "{0}:{1}".format(truncatedTime, frame)
+    systemTimeSeconds = (systemTime.hour * 60 + systemTime.minute) * 60 + systemTime.second + systemTime.microsecond
 
-    timecode = Timecode(frameRate, timecodeString)
-    return timecode.frames, repr(timecode)
+    timecode = Timecode(frameRate, start_seconds=systemTimeSeconds)
+    return timecode.frames
 
 
 def framesToSMPTE(frameRate : int, framesToConvert : int) -> str:

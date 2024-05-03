@@ -96,7 +96,7 @@ class FreeDCaptureThread(BaseCaptureThread):
         data[TRACKING_YAW] = -(packet.rot_pan + 90)
         data[TRACKING_ROLL] = packet.rot_roll
 
-        data[TRACKING_TIMECODE_KEY] = utils.getSystemTimecodeAsFrames(self.frameRate)[0]
+        data[TRACKING_TIMECODE_KEY] = utils.getSystemTimecodeAsFrames(self.frameRate)
         
         return data
 
