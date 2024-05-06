@@ -19,13 +19,13 @@ include = [
 start-blackhole = "blackhole.launch:start_server"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-fastapi = "^0.110.3"
-openpyxl = "^3.1.2"
-pydantic = "^2.7.1"
-timecode = "^1.4.0"
-usd-core = "^24.5"
-uvicorn = "^0.29.0"
+python = ">=3.11,<3.12"
+fastapi = ">=0.110.3"
+openpyxl = ">=3.1.2"
+pydantic = ">=2.7.1"
+timecode = ">=1.4.0"
+usd-core = ">=24.5"
+uvicorn = ">=0.29.0"
 
 [build-system]
 requires = ["poetry-core"]

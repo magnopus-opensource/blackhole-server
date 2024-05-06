@@ -1,16 +1,33 @@
-Start by installing the latest version of Python (3.11 as of Sept 2023).
+# Setting Up Blackhole
 
-Inside of the blackhole2 directory, create a new virtual environment:
-py -3 -m venv .venv
+Start by installing the latest release of `Python 3.11`, available at https://www.python.org/downloads/.
 
-Enter the virtual environment with:
-.\.venv\Scripts\activate
+Follow the instructions at https://python-poetry.org/docs/ in order to set up `poetry` on your machine. In a nutshell, this will involve installing `pipx`, followed by using pipx to install `poetry`.
 
-Install all required packages with:
-pip install -r requirements.txt
+Next, it's time to set up your virtual environment. Navigate to your `blackhole` repo directory in the command line. It's possible `poetry` may be able to find your `Python 3.11` install automatically due to there being multiple versions of Python installed on your machine. For that reason, it's simplest to provide `poetry` the absolute path to your install directory, like so:
 
-To start the server:
-uvicorn main:blackhole_app --reload
+>`env use C:\Users\{YOUR_USER_NAME}\AppData\Local\Programs\Python\Python311\python.exe`
 
-While the server is running, you can view the Swagger page at:
-http://127.0.0.1:8000/docs
+Once poetry has created your virtual environment, enter:
+
+> poetry install
+
+This command will install all required dependencies to the virtual environment.
+
+# Running Blackhole
+
+To run `blackhole`, enter:
+
+> poetry run start-blackhole
+
+You should see the following: 
+
+>INFO:     Started server process [532]
+>
+>INFO:     Waiting for application startup.
+>
+>INFO:     Application startup complete.
+>
+>INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+At this point `blackhole` is ready to receive API requests. While the server is runing, you may view the Swagger page for the app at: http://127.0.0.1:8000/docs
