@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class BaseCaptureThread(Thread, ABC):
-    def __init__(self, frameRate : int, deviceName : str, port: int, socket : socket, stopEvent : Event):
+    def __init__(self, frameRate : int, deviceName : str, port: int, stopEvent : Event):
         super().__init__()
 
         self.deviceName = deviceName
@@ -35,7 +35,7 @@ class BaseCaptureThread(Thread, ABC):
 
         try:
             self.listeningSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.listeningSocket.bind("", port)
+            self.listeningSocket.bind(("", port))
 
         except socket.gaierror:
             logger.error(f"Tracking device '{deviceName}' cannot resolve with Port={port}. Please check config/deviceConfig.ini.")
