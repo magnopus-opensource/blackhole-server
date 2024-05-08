@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "blackhole"
+version = "0.1.0"
+description = "Blackhole provides a webapp api for recording camera-tracking data into USD files while storing all take metadata inside a SQL database."
+authors = [
+    "Andrew Bueno <andrew.bueno@magnopus.com>"
+]
+maintainers = [
+    "Andrew Bueno <andrew.bueno@magnopus.com>",
+    "Lily Pitts <lily.pitts@magnopus.com>"
+]
+license = "Apache-2.0"
+readme = "README.md"
+include = [
+    "blackhole_config/*"
+]
+
+[tool.poetry.scripts]
+start-blackhole = "blackhole.launch:start_server"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+fastapi = ">=0.110.3"
+openpyxl = ">=3.1.2"
+pydantic = ">=2.7.1"
+timecode = ">=1.4.0"
+usd-core = ">=24.5"
+uvicorn = ">=0.29.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
