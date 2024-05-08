@@ -105,13 +105,17 @@ class FreeDCaptureThread(BaseCaptureThread):
     def packageFrameData(self, packet : FreeDPacket):
         data = dict()
 
-        # USD default coordinate system is right-handed, Y-up, with metersPerUnit set to 0.01 (aka cm)
-        # FreeD is right-handed, Z-up, with position in millimeters
-        # Strangely, Unreal rotates USDs it imports by 90 degrees around the Z axis so we need to compensate. 
+        # Convert the camera transform from FreeD's conventions to USD
+        # FreeD uses a right-handed coordinate system with Z-up, with positions in millimeters
+        # USD uses a right-handed coordinate system with Y-up, with metersPerUnit set to 0.01 (aka cm)
+
+        # Swap the axes and scale from mm to cm
         data[TRACKING_X] = packet.pos_y / 10.0
         data[TRACKING_Y] = packet.pos_z / 10.0
         data[TRACKING_Z] = packet.pos_x / 10.0
 
+        # Tilt and roll are equivalent to pitch and roll respectively
+        # Yaw is negated and rotated by 90 degrees to account for the different axis conventions
         data[TRACKING_PITCH] = packet.rot_tilt
         data[TRACKING_YAW] = -(packet.rot_pan + 90)
         data[TRACKING_ROLL] = packet.rot_roll
