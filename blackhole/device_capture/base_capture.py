@@ -38,10 +38,7 @@ class BaseCaptureThread(Thread, ABC):
             self.listeningSocket.bind(("", port))
 
         except socket.gaierror:
-            logger.error(f"Tracking device '{deviceName}' cannot resolve with Port={port}. Please check config/deviceConfig.ini.")
-            self.initialized = False
-
-        self.initialized = True
+            raise
 
     @property
     @abstractmethod
@@ -80,15 +77,12 @@ class BaseCaptureThread(Thread, ABC):
         """
         Used to clean up any remaining resources being used by the thread after capture has stopped.
         """
-        if not self.initialized:
-            return
-
         self.listeningSocket.shutdown(socket.SHUT_RDWR)
         self.listeningSocket.close()
 
     def run(self):
         try:
-            while self.initialized and not self.stopEvent.is_set():
+            while not self.stopEvent.is_set():
                 ready, _, _ = select.select([self.listeningSocket], [], [], 1)
                 
                 for sock in ready:

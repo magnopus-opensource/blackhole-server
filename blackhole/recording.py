@@ -69,7 +69,12 @@ class Recording(Thread):
                 captureThreads.append(captureThreadInstance)
             
             except KeyError as e:
-                logger.error("Can't find key {0}, skipping. \n-----> Please add {0} to config/deviceConfig.ini under the section labled {1}".format(e, deviceName))
+                logger.error(f"Can't find key {e}, skipping. \n-----> Please add {e} to blackhole_config/device_config.ini under the section labled {deviceName}")
+                continue
+            except socket.gaierror:
+                logger.error(f"Tracking thread for device '{deviceName}' can't bind socket to Port={discoveredPort}. 
+                             \n-----> Please check that blackhole_config/device_config.ini has the correct port assigned for the device, 
+                             and that another socket is not already listening on that port.")
                 continue
         
         for thread in captureThreads:
