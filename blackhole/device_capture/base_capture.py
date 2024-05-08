@@ -12,30 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
-from threading import Thread, Event
+import logging
 import select
 import socket
-import logging
+from abc import ABC, abstractmethod
+from threading import Thread, Event
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 class BaseCaptureThread(Thread, ABC):
-    def __init__(self, frameRate : int, deviceName : str, port: int, stopEvent : Event):
+    def __init__(self, frame_rate: int, device_name: str, port: int, stop_event: Event):
         super().__init__()
 
-        self.deviceName = deviceName
-        self.frameRate = frameRate
+        self.device_name = device_name
+        self.frame_rate = frame_rate
 
-        self.capturedTrackingData = [] 
-        self.dataToExport = None
+        self.captured_tracking_data = []
+        self.data_to_export = None
 
-        self.stopEvent = stopEvent
+        self.stop_event = stop_event
 
         try:
-            self.listeningSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.listeningSocket.bind(("", port))
+            self.listening_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.listening_socket.bind(("", port))
 
         except socket.gaierror:
             raise
@@ -50,52 +51,52 @@ class BaseCaptureThread(Thread, ABC):
         pass
 
     @abstractmethod
-    def parsePacket(self, packetBytes):
+    def parse_packet(self, packet_bytes):
         """
         Used to process the raw bytes of a packet sent by your device into an object containing
         the transform information of a frame. Must be implemented by subclasses.
         """
         pass
-    
+
     @abstractmethod
-    def validateParsedData(self, parsedPacket):
+    def validate_parsed_data(self, parsed_packet):
         """
         Used to validate the results of a call to parsePacket. Must be implemented by
         subclasses.
         """
         pass
-    
-    def cacheParsedData(self, parsedPacket):
+
+    def cache_parsed_data(self, parsed_packet):
         """
         Used to append parsed frame data to the list of data collected so far. This should take the
         form of a dictionary with key-value pairs for X,Y,Z position and rotation, and the timecode
         as frames (see BlackholeConstants for what keys to use).
         """
-        self.capturedTrackingData.append(parsedPacket)
+        self.captured_tracking_data.append(parsed_packet)
 
     def cleanup(self):
         """
         Used to clean up any remaining resources being used by the thread after capture has stopped.
         """
-        self.listeningSocket.shutdown(socket.SHUT_RDWR)
-        self.listeningSocket.close()
+        self.listening_socket.shutdown(socket.SHUT_RDWR)
+        self.listening_socket.close()
 
     def run(self):
         try:
-            while not self.stopEvent.is_set():
-                ready, _, _ = select.select([self.listeningSocket], [], [], 1)
-                
+            while not self.stop_event.is_set():
+                ready, _, _ = select.select([self.listening_socket], [], [], 1)
+
                 for sock in ready:
                     packet = sock.recv(self.packet_size)
 
-                    trackingData = self.parsePacket(packet)
-                    
-                    if self.validateParsedData(trackingData):
-                        self.cacheParsedData(trackingData)
+                    tracking_data = self.parse_packet(packet)
+
+                    if self.validate_parsed_data(tracking_data):
+                        self.cache_parsed_data(tracking_data)
 
         except Exception as e:
             print(e)
-        
+
         finally:
-            self.dataToExport = list(self.capturedTrackingData)
+            self.data_to_export = list(self.captured_tracking_data)
             self.cleanup()

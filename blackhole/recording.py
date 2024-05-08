@@ -12,155 +12,161 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pathlib
 import configparser
-import socket
 import importlib
 import logging
+import pathlib
+import socket
+from threading import Thread, Event
+
 import blackhole.database_utils as utils
-from threading import Thread, Event, Lock
-from typing import Callable
-from blackhole.usd_export import UsdArchiver, USDMasterStageArchiver
-from blackhole.constants import *
 from blackhole.models import *
+from blackhole.usd_export import UsdArchiver, USDMasterStageArchiver
 
 logger = logging.getLogger(__name__)
 
+
 class Recording(Thread):
-    def __init__(self, slate, takeNumber, frameRate, stopEvent, stopCallback):
+    def __init__(self, slate, take_number, frame_rate, stop_event, stop_callback):
         super().__init__()
         self.slate = slate
-        self.takeNumber = takeNumber
-        self.frameRate = frameRate
-        self._stopEvent = stopEvent
-        self._stoppedCaptureCallback = stopCallback
+        self.take_number = take_number
+        self.frame_rate = frame_rate
+        self._stop_event = stop_event
+        self._stopped_capture_callback = stop_callback
 
-        self._deviceConfig = configparser.ConfigParser()
-        self._deviceConfig.read("blackhole_config/device_config.ini")
+        self._device_config = configparser.ConfigParser()
+        self._device_config.read("blackhole_config/device_config.ini")
 
-        self.archivePath = pathlib.Path(utils.getBaseArchivePath(), self.slate, str(self.takeNumber))
+        self.archive_path = pathlib.Path(utils.get_base_archive_path(), self.slate, str(self.take_number))
 
     def run(self):
-        deviceCaptureData = self.startCapturingData()
+        device_capture_data = self.start_capturing_data()
 
         # Tell the RecordingSessionManager we are no longer capturing, so it's free to start another recording
-        self._stoppedCaptureCallback()
+        self._stopped_capture_callback()
 
         # Turn our capture data into USDs
-        self.archiveCapturedData(deviceCaptureData)
+        self.archive_captured_data(device_capture_data)
 
         # Record the location of the USDs in the database and the master spreadsheet
-        self.updateDatabaseWithArchivePath()
-        
-        logger.info(f"USD archive for Slate: {self.slate}, Take: {self.takeNumber} complete!")     
+        self.update_database_with_archive_path()
 
-    def startCapturingData(self):
-        captureThreads = []
+        logger.info(f"USD archive for Slate: {self.slate}, Take: {self.take_number} complete!")
 
-        for deviceName in self._deviceConfig.sections():
+    def start_capturing_data(self):
+        capture_threads = []
+
+        for deviceName in self._device_config.sections():
             try:
-                discoveredPort = int(self._deviceConfig[deviceName]["PORT"])
-                protocol = self._deviceConfig[deviceName]["TRACKING_PROTOCOL"]
-
-                captureModule = importlib.import_module(f"blackhole.device_capture.{protocol.lower()}_capture")
-                captureThreadClass = getattr(captureModule, "{0}CaptureThread".format(protocol))
-                captureThreadInstance = captureThreadClass(self.frameRate, deviceName, discoveredPort, self._stopEvent)
-                
-                captureThreads.append(captureThreadInstance)
-            
+                discovered_port = int(self._device_config[deviceName]["PORT"])
+                protocol = self._device_config[deviceName]["TRACKING_PROTOCOL"]
             except KeyError as e:
-                logger.error(f"Can't find key {e}, skipping. \n-----> Please add {e} to blackhole_config/device_config.ini under the section labled {deviceName}")
+                logger.error(f"Can't find key {e}, skipping. \n-----> Please add {e} to "
+                             f"blackhole_config/device_config.ini under the section labled {deviceName}")
                 continue
+
+            try:
+                capture_module = importlib.import_module(f"blackhole.device_capture.{protocol.lower()}_capture")
+                capture_thread_class = getattr(capture_module, "{0}CaptureThread".format(protocol))
+                capture_thread_instance = capture_thread_class(self.frame_rate, deviceName, discovered_port,
+                                                               self._stop_event)
+
+                capture_threads.append(capture_thread_instance)
             except socket.gaierror:
-                logger.error(f"Tracking thread for device '{deviceName}' can't bind socket to Port={discoveredPort}. 
-                             \n-----> Please check that blackhole_config/device_config.ini has the correct port assigned for the device, 
-                             and that another socket is not already listening on that port.")
+                logger.error(f"Tracking thread for device '{deviceName}' can't bind socket to Port={discovered_port}."
+                             "\n-----> Please check that blackhole_config/device_config.ini has the correct port "
+                             "assigned for the device, and that another socket is not already listening on that port.")
                 continue
-        
-        for thread in captureThreads:
-            logger.info(f"Beginning capture of {thread.deviceName} for Slate: {self.slate}, Take: {self.takeNumber}")
+
+        for thread in capture_threads:
+            logger.info(f"Beginning capture of {thread.device_name} for Slate: {self.slate}, Take: {self.take_number}")
             thread.start()
 
         # The threads will stop once the stopEvent we gave them is set by the RecordingSessionManager
-        deviceCaptureData = {}
-        for thread in captureThreads:
+        device_capture_data = {}
+        for thread in capture_threads:
             thread.join()
-            deviceCaptureData[thread.deviceName] = thread.dataToExport
+            device_capture_data[thread.device_name] = thread.data_to_export
 
-        return deviceCaptureData
+        return device_capture_data
 
-    def archiveCapturedData(self, deviceCaptureDict):
+    def archive_captured_data(self, device_capture_dict):
         # Get db sequence row:
-        take = utils.retrieveTake(self.slate, self.takeNumber)
+        take = utils.retrieve_take(self.slate, self.take_number)
 
         if take:
-            subUsdThreads = []
-            for deviceName, captureData in deviceCaptureDict.items():
-                subArchivePath = pathlib.Path(self.archivePath, "cameras", deviceName, f'{deviceName}.usda')
+            sub_usd_threads = []
+            for device_name, captureData in device_capture_dict.items():
+                sub_archive_path = pathlib.Path(self.archive_path, "cameras", device_name, f'{device_name}.usda')
                 archiver = UsdArchiver(
-                                subArchivePath, 
-                                take.slate, 
-                                take.take_number, 
-                                take.frame_rate, 
-                                take.timecode_in_frames, 
-                                take.timecode_out_frames, 
-                                take.map, 
-                                captureData
-                            )
-                subUsdThreads.append(archiver)
+                    sub_archive_path,
+                    take.slate,
+                    take.take_number,
+                    take.frame_rate,
+                    take.timecode_in_frames,
+                    take.timecode_out_frames,
+                    take.map,
+                    captureData
+                )
+                sub_usd_threads.append(archiver)
 
             # Start each of our child USD renders, then wait for them to finish
-            for thread in subUsdThreads:
-                logger.info(f"Beginning render of {deviceName} subsequence to {thread.archivePath}")
+            for thread in sub_usd_threads:
+                logger.info(f"Beginning render of subsequence to {thread.sub_archive_path}")
                 thread.start()
 
-            for thread in subUsdThreads:
+            for thread in sub_usd_threads:
                 thread.join()
 
             # The master USD file will reference each of the capture data USDs via a relative path
-            deviceArchiveRelativePaths = [ subThread.archivePath.relative_to(self.archivePath) for subThread in subUsdThreads ]
-            masterArchivePath = pathlib.Path(self.archivePath, "master", 'MasterSequence.usda')
-            masterArchiveThread = USDMasterStageArchiver(masterArchivePath, deviceArchiveRelativePaths)
+            device_archive_relative_paths = [subThread.sub_archive_path.relative_to(self.archive_path) for subThread
+                                             in sub_usd_threads]
+            master_archive_path = pathlib.Path(self.archive_path, "master", 'MasterSequence.usda')
+            master_archive_thread = USDMasterStageArchiver(master_archive_path, device_archive_relative_paths)
 
-            logger.info(f"Beginning render of master sequence to {masterArchiveThread.archivePath}")        
-            masterArchiveThread.start()
-            masterArchiveThread.join()
+            logger.info(f"Beginning render of master sequence to {master_archive_thread.archivePath}")
+            master_archive_thread.start()
+            master_archive_thread.join()
         else:
-            logger.error(f"Can't archive recorded data to USD. No data for Slate: {self.slate}, Take {self.takeNumber} was recorded to the database.")
+            logger.error(f"Can't archive recorded data to USD. No data for Slate: {self.slate}, "
+                         f"Take {self.take_number} was recorded to the database.")
 
-    def updateDatabaseWithArchivePath(self):
-        take = utils.retrieveTake(self.slate, self.takeNumber)
+    def update_database_with_archive_path(self):
+        take = utils.retrieve_take(self.slate, self.take_number)
         take_update = TakeUpdate(**take.model_dump(by_alias=True, exclude_none=True))
-        take_update.usd_export_location = str(self.archivePath)
-        utils.updateTake(take_update)
+        take_update.usd_export_location = str(self.archive_path)
+        utils.update_take(take_update)
 
 
-class RecordingSessionManager():
+class RecordingSessionManager:
     def __init__(self):
-        self._currentRecording : Recording = None
-        self._stopRecordingEvent = Event()
+        self._current_recording: Recording | None = None
+        self._stop_recording_event = Event()
 
-    def getRecordingStatus(self):
-        if self._currentRecording == None:
-            return (False, None, None, None)
+    def get_recording_status(self):
+        if self._current_recording is None:
+            return False, None, None, None
         else:
-            return (True, self._currentRecording.slate, self._currentRecording.takeNumber, self._currentRecording.frameRate)
+            return (True, self._current_recording.slate, self._current_recording.take_number,
+                    self._current_recording.frame_rate)
 
-    def resetRecordingState(self):
-        self._stopRecordingEvent.clear()
-        self._currentRecording = None
+    def reset_recording_state(self):
+        self._stop_recording_event.clear()
+        self._current_recording = None
 
-    def startRecording(self, slate, takeNumber, frameRate):
-        isRecording, _, _, _ = self.getRecordingStatus()
+    def start_recording(self, slate, take_number, frame_rate):
+        is_recording, _, _, _ = self.get_recording_status()
 
-        if isRecording:
+        if is_recording:
             return
 
-        self._currentRecording = Recording(slate, takeNumber, frameRate, self._stopRecordingEvent, self.resetRecordingState)
-        self._currentRecording.start()
+        self._current_recording = Recording(slate, take_number, frame_rate, self._stop_recording_event,
+                                            self.reset_recording_state)
+        self._current_recording.start()
 
-    def stopRecording(self):
-        isRecording, _, _, _ = self.getRecordingStatus()
+    def stop_recording(self):
+        is_recording, _, _, _ = self.get_recording_status()
 
-        if isRecording:
-            self._stopRecordingEvent.set()
+        if is_recording:
+            self._stop_recording_event.set()

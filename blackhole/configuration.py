@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pathlib
 import configparser
+import pathlib
 import shutil
+
 from blackhole.constants import *
+
 
 def app_config_valid():
     config_path = pathlib.Path(CONFIG_DIR, APP_CONFIG_NAME)
@@ -25,7 +27,7 @@ def app_config_valid():
     else:
         archive_header = "ArchiveSettings"
         archive_keys = ["ARCHIVE_DIRECTORY", "DATABASE_PATH", "MASTER_SPREADSHEET_PATH"]
-        
+
         export_header = "ExportSettings"
         export_keys = ["EXPORT_DIRECTORY"]
 
@@ -40,9 +42,10 @@ def app_config_valid():
             return False
         elif not all(key in parser[export_header].keys() for key in export_keys):
             return False
-        
+
         return True
-        
+
+
 def device_config_valid():
     config_path = pathlib.Path(CONFIG_DIR, DEVICE_CONFIG_NAME)
 
@@ -57,20 +60,21 @@ def device_config_valid():
         for section in parser.sections():
             if not all(key in parser[section].keys() for key in device_keys):
                 return False
-        
+
         return True
+
 
 def initialize():
     default_config_dir = pathlib.Path(__file__).resolve().parent / "default_config"
     config_dir = pathlib.Path(CONFIG_DIR).resolve()
-    config_dir.mkdir(parents = True, exist_ok = True)
+    config_dir.mkdir(parents=True, exist_ok=True)
 
     if not app_config_valid():
         default_app_config_path = default_config_dir / "default_app_config.ini"
         app_config_path = config_dir / APP_CONFIG_NAME
-        shutil.copy(default_app_config_path,app_config_path)
+        shutil.copy(default_app_config_path, app_config_path)
 
     if not device_config_valid():
-        default_device_config_path = default_config_dir / "default_device_config.ini"        
+        default_device_config_path = default_config_dir / "default_device_config.ini"
         device_config_path = config_dir / DEVICE_CONFIG_NAME
         shutil.copy(default_device_config_path, device_config_path)

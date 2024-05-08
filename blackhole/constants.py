@@ -60,6 +60,12 @@ LEVEL_SNAPSHOT_DB_COL = "level_snapshot_location"
 LEVEL_SEQUENCE_DB_COL = "level_sequence_location"
 MAP_DB_COL = "map"
 
+# Take Search Criteria Labels
+START_DATE_FILTER = "start_date"
+END_DATE_FILTER = "end_date"
+SLATE_HINT_FILTER = "slate_hint"
+FRAME_RATE_FILTER = "frame_rate"
+
 SHOT_DB_SCHEMA = [
     SLATE_DB_COL,
     TAKE_NUMBER_DB_COL,
@@ -79,8 +85,9 @@ SHOT_DB_SCHEMA = [
     DESCRIPTION_DB_COL
 ]
 
-def schemaLabelToTitle(columnName : str) -> str:
-    tokens = columnName.split("_")
+
+def schema_label_to_title(column_name: str) -> str:
+    tokens = column_name.split("_")
     upper = []
 
     for token in tokens:
@@ -91,13 +98,6 @@ def schemaLabelToTitle(columnName : str) -> str:
 
     title = str.join(" ", upper)
     return title
-
-# Take Search Criteria Labels
-START_DATE_FILTER = "start_date"
-END_DATE_FILTER = "end_date"
-SLATE_HINT_FILTER = "slate_hint"
-FRAME_RATE_FILTER = "frame_rate"
-
 
 
 # Spreadsheet Constants
