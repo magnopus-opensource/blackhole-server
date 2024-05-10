@@ -22,14 +22,14 @@ FREED_PACKET_SIZE = 29  # All FreeD position/orientation data is sent in 29-byte
 
 class FreeDPacket:
     def __init__(self, packet_data: bytes):
-        if len(packet_data) != FREED_PACKET_SIZE:
+        # Format string for unpacking the packet byte array:
+        packet_format = '!cc3s3s3s3s3s3s3s3s2sc'
+
+        if len(packet_data) != struct.calcsize(packet_format):
             logger.error("FreeD camera transform packet must contain 29 bytes.")
             return
 
         self.packetBytes = packet_data
-
-        # Format string for unpacking the packet byte array:
-        packet_format = '!cc3s3s3s3s3s3s3s3s2sc'
 
         (message_type_byte,
          camera_id_byte,
