@@ -85,27 +85,27 @@ def initialize_database():
     with sqlite3.connect(database_path) as dbConnection:
         try:
             # Create the database if it doesn't already exist
-            dbConnection.execute(
-                f"CREATE TABLE IF NOT EXISTS {MAIN_TABLE_NAME} "
-                "( "
-                f"{SLATE_DB_COL} TEXT NOT NULL, "
-                f"{TAKE_NUMBER_DB_COL} INT NOT NULL, "
-                f"{CORRECTED_SLATE_DB_COL} TEXT, "
-                f"{CORRECTED_TAKE_DB_COL} INT, "
-                f"{VALID_DB_COL} INT NOT NULL DEFAULT 0, "
-                f"{DATE_DB_COL} TEXT NOT NULL, "
-                f"{FRAME_RATE_DB_COL} INT, "
-                f"{TIMECODE_IN_FRAMES_DB_COL} INT, "
-                f"{TIMECODE_OUT_FRAMES_DB_COL} INT, "
-                f"{TIMECODE_IN_SMPTE_DB_COL} TEXT, "
-                f"{TIMECODE_OUT_SMPTE_DB_COL} TEXT, "
-                f"{LEVEL_SNAPSHOT_DB_COL} TEXT, "
-                f"{LEVEL_SEQUENCE_DB_COL} TEXT, "
-                f"{MAP_DB_COL} TEXT, "
-                f"{USD_ARCHIVE_DB_COL} TEXT, "
-                f"{DESCRIPTION_DB_COL} TEXT, "
-                f"PRIMARY KEY ({SLATE_DB_COL}, {TAKE_NUMBER_DB_COL}) "
-                ")"
+            dbConnection.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MAIN_TABLE_NAME} (
+                {SLATE_DB_COL} TEXT NOT NULL,
+                {TAKE_NUMBER_DB_COL} INT NOT NULL,
+                {CORRECTED_SLATE_DB_COL} TEXT,
+                {CORRECTED_TAKE_DB_COL} INT,
+                {VALID_DB_COL} INT NOT NULL DEFAULT 0,
+                {DATE_DB_COL} TEXT NOT NULL,
+                {FRAME_RATE_DB_COL} INT,
+                {TIMECODE_IN_FRAMES_DB_COL} INT,
+                {TIMECODE_OUT_FRAMES_DB_COL} INT,
+                {TIMECODE_IN_SMPTE_DB_COL} TEXT,
+                {TIMECODE_OUT_SMPTE_DB_COL} TEXT,
+                {LEVEL_SNAPSHOT_DB_COL} TEXT,
+                {LEVEL_SEQUENCE_DB_COL} TEXT,
+                {MAP_DB_COL} TEXT,
+                {USD_ARCHIVE_DB_COL} TEXT,
+                {DESCRIPTION_DB_COL} TEXT,
+                PRIMARY KEY ({SLATE_DB_COL}, {TAKE_NUMBER_DB_COL})
+                )
+                """
             )
 
         except sqlite3.OperationalError as e:
@@ -142,16 +142,13 @@ def check_take_exists(slate: str, take_number: int) -> bool:
         cursor = dbConnection.cursor()
 
         try:
-            query = {f"{SLATE_DB_COL}": slate, f"{TAKE_NUMBER_DB_COL}": take_number}
+            query = {SLATE_DB_COL: slate, TAKE_NUMBER_DB_COL: take_number}
 
             command = (f"SELECT 1 FROM {MAIN_TABLE_NAME} WHERE {SLATE_DB_COL} = :{SLATE_DB_COL} AND "
                        f"{TAKE_NUMBER_DB_COL} = :{TAKE_NUMBER_DB_COL}")
             cursor.execute(command, query)
 
-            if cursor.fetchone():
-                return True
-            else:
-                return False
+            return cursor.fetchone() is not None
 
         except sqlite3.OperationalError as e:
             logger.error(f"blackhole.lib.checkRowExists() SQLite Error: {e}")
@@ -210,13 +207,13 @@ def retrieve_takes(start_date=None, end_date=None, slate_hint=None) -> list[Take
 
             filter_commands = []
 
-            if start_date is not None:
+            if start_date:
                 filter_commands.append(f'{DATE_DB_COL} >= :{START_DATE_FILTER}')
 
-            if end_date is not None:
+            if end_date:
                 filter_commands.append(f'{DATE_DB_COL} <= :{END_DATE_FILTER}')
 
-            if slate_hint is not None:
+            if slate_hint:
                 filter_commands.append(f'{SLATE_DB_COL} LIKE :{SLATE_HINT_FILTER}')
 
             if len(filter_commands) > 0:
