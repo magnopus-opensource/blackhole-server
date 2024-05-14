@@ -17,15 +17,15 @@ from blackhole.constants import *
 import blackhole.database_utils as utils
 import struct
 
-FREED_PACKET_SIZE = 29  # All FreeD position/orientation data is sent in 29-byte packets.
+PACKET_FORMAT = '!cc3s3s3s3s3s3s3s3s2sc' # All FreeD position/orientation data is sent in 29-byte packets.
+FREED_PACKET_SIZE = struct.calcsize(PACKET_FORMAT)
 
 
 class FreeDPacket:
     def __init__(self, packet_data: bytes):
         # Format string for unpacking the packet byte array:
-        packet_format = '!cc3s3s3s3s3s3s3s3s2sc'
 
-        if len(packet_data) != struct.calcsize(packet_format):
+        if len(packet_data) != FREED_PACKET_SIZE:
             logger.error("FreeD camera transform packet must contain 29 bytes.")
             return
 
@@ -42,7 +42,7 @@ class FreeDPacket:
          zoom_byte,
          focus_byte,
          spare_bytes,
-         checksum_byte) = struct.unpack(packet_format, self.packetBytes)
+         checksum_byte) = struct.unpack(PACKET_FORMAT, self.packetBytes)
 
         self.cam_id = int.from_bytes(camera_id_byte, byteorder='big')
 
@@ -104,17 +104,38 @@ class FreeDCaptureThread(BaseCaptureThread):
     def package_frame_data(self, packet: FreeDPacket):
         data = dict()
 
-        # Convert the camera transform from FreeD's conventions to USD
-        # FreeD uses a right-handed coordinate system with Z-up, with positions in millimeters
-        # USD uses a right-handed coordinate system with Y-up, with metersPerUnit set to 0.01 (aka cm)
-
-        # Swap the axes and scale from mm to cm
+        # Convert the camera transform from FreeD's conventions to USD.
+        #
+        # The FreeD protocol uses a right-handed coordinate space with +Z up, +Y forward, +X right. Positions are 
+        # measured in millimeters.
+        # 
+        # USD also uses a right-handed coordinate space, but with +Y as up, -Z as forward, and +X as right (unless
+        # configured otherwise). Positions are measured in centimeters (unless configured otherwise).
+        #
+        # FreeD departs from right-handed coordinate system conventions by having positive pan direction be clockwise
+        # rather than counterclockwise.
+        #
+        # Unreal FRotators actually use the same positive rotation direction conventions as FreeD, so in a direct
+        # conversion between the two the only change to the transform would be swapping the X and Y axes.
+        #
+        # When Unreal converts USD cameras it subtracts a 90 degree yaw rotation because USD cameras use -Z as their
+        # local forward while Unreal cameras use +X. So, we add a 90 degree yaw rotation to the FreeD rotation to
+        # compensate for this.
+        #
+        # In a scenario where we’ve recorded a camera’s motion into a level sequence in Unreal while simultaneously
+        # recording a USD of that same camera in Blackhole, this step will ensure that when we import the USD camera
+        # track into Unreal, it matches the orientation of the camera track in the level sequence.
+        #
+        # Note that tilt, pan, and roll are equivalent to pitch, yaw, and roll, respectively.
+        #
+        # References:
+        # - https://www.manualsdir.com/manuals/641433/vinten-radamec-free-d.html?page=40
+        # - Unreal Engine USDImporter plugin code, USDPrimConversion.cpp, function UsdToUnreal::ConvertXformable(),
+        #   lines 329-386
         data[TRACKING_X] = packet.pos_y / 10.0
         data[TRACKING_Y] = packet.pos_z / 10.0
         data[TRACKING_Z] = packet.pos_x / 10.0
 
-        # Tilt and roll are equivalent to pitch and roll respectively
-        # Yaw is negated and rotated by 90 degrees to account for the different axis conventions
         data[TRACKING_PITCH] = packet.rot_tilt
         data[TRACKING_YAW] = -(packet.rot_pan + 90)
         data[TRACKING_ROLL] = packet.rot_roll
