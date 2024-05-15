@@ -17,7 +17,7 @@ from blackhole.constants import *
 import blackhole.database_utils as utils
 import struct
 
-PACKET_FORMAT = '!cc3s3s3s3s3s3s3s3s2sc' # All FreeD position/orientation data is sent in 29-byte packets.
+PACKET_FORMAT = '!cc3s3s3s3s3s3s3s3s2sc'  # All FreeD position/orientation data is sent in 29-byte packets.
 FREED_PACKET_SIZE = struct.calcsize(PACKET_FORMAT)
 
 
@@ -26,7 +26,7 @@ class FreeDPacket:
         # Format string for unpacking the packet byte array:
 
         if len(packet_data) != FREED_PACKET_SIZE:
-            logger.error("FreeD camera transform packet must contain 29 bytes.")
+            logger.error(f"FreeD camera transform packet must contain {FREED_PACKET_SIZE} bytes.")
             return
 
         self.packetBytes = packet_data
