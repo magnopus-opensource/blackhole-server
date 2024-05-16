@@ -38,7 +38,7 @@ def get_system_timecode_as_frames(frame_rate: int):
     system_time = datetime.now()
 
     system_time_seconds = ((system_time.hour * 60 + system_time.minute) * 60 + system_time.second
-                           + system_time.microsecond)
+                           + (system_time.microsecond / 1000000))
 
     timecode = Timecode(frame_rate, start_seconds=system_time_seconds)
     return timecode.frames

@@ -23,10 +23,8 @@ FREED_PACKET_SIZE = struct.calcsize(PACKET_FORMAT)
 
 class FreeDPacket:
     def __init__(self, packet_data: bytes):
-        # Format string for unpacking the packet byte array:
-
         if len(packet_data) != FREED_PACKET_SIZE:
-            logger.error("FreeD camera transform packet must contain 29 bytes.")
+            logger.error(f"FreeD camera transform packet must contain {FREED_PACKET_SIZE} bytes.")
             return
 
         self.packetBytes = packet_data
