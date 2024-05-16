@@ -17,7 +17,7 @@ from blackhole.constants import *
 import blackhole.database_utils as utils
 import struct
 
-PACKET_FORMAT = '!cc3s3s3s3s3s3s3s3s2sc' # All FreeD position/orientation data is sent in 29-byte packets.
+PACKET_FORMAT = '!cc3s3s3s3s3s3s3s3s2sc'  # All FreeD position/orientation data is sent in 29-byte packets.
 FREED_PACKET_SIZE = struct.calcsize(PACKET_FORMAT)
 
 
