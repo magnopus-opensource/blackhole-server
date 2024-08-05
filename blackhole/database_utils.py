@@ -242,15 +242,16 @@ def retrieve_takes_by_list(slate_and_take_list: TakeIDsList, include_corrections
         cursor = dbConnection.cursor()
 
         try:
-            list_as_sql_string = ", ".join([f'("{t[0]}", {t[1]})' for t in slate_and_take_list.id_list])
+            id_list = slate_and_take_list.id_list
 
-            command = (f"SELECT * FROM blackhole_takes WHERE ({SLATE_DB_COL}, {TAKE_NUMBER_DB_COL}) IN "
-                       f"({list_as_sql_string})")
+            sql = f"SELECT * FROM blackhole_takes WHERE ? IN ?"
+            args = [(SLATE_DB_COL, TAKE_NUMBER_DB_COL), id_list]
 
             if include_corrections:
-                command += f" OR ({CORRECTED_SLATE_DB_COL}, {CORRECTED_TAKE_DB_COL}) IN ({list_as_sql_string})"
+                sql += f" OR ? in ?"
+                args += [(CORRECTED_SLATE_DB_COL, CORRECTED_TAKE_DB_COL), id_list]
 
-            cursor.execute(command)
+            cursor.execute(sql, args)
 
             raw_results = cursor.fetchall()
             results = [Take(**dict(row)) for row in raw_results]
