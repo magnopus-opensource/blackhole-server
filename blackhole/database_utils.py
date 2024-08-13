@@ -244,12 +244,19 @@ def retrieve_takes_by_list(slate_and_take_list: TakeIDsList, include_corrections
         try:
             id_list = slate_and_take_list.id_list
 
-            sql = f"SELECT * FROM blackhole_takes WHERE ? IN ?"
-            args = [(SLATE_DB_COL, TAKE_NUMBER_DB_COL), id_list]
+            sql = f"SELECT * FROM blackhole_takes WHERE (:slate_col, :take_col) IN :id_list"
+            args = {
+                "slate_col": SLATE_DB_COL,
+                "take_col": TAKE_NUMBER_DB_COL,
+                "id_list": id_list
+            }
 
             if include_corrections:
-                sql += f" OR ? in ?"
-                args += [(CORRECTED_SLATE_DB_COL, CORRECTED_TAKE_DB_COL), id_list]
+                sql += f" OR (:corrected_slate_col, :corrected_take_col) in :id_list"
+                args |= {
+                    "corrected_slate_col", CORRECTED_SLATE_DB_COL,
+                    "corrected_take_col", CORRECTED_TAKE_DB_COL
+                }
 
             cursor.execute(sql, args)
 
