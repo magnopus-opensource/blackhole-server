@@ -72,7 +72,8 @@ class BaseCaptureThread(Thread, ABC):
         form of a dictionary with key-value pairs for X,Y,Z position and rotation, and the timecode
         as frames (see BlackholeConstants for what keys to use).
         """
-        self.captured_tracking_data.append(parsed_packet)
+        packets = self.captured_tracking_data.setdefault(self.device_name, [])
+        packets.append(parsed_packet)
 
     def cleanup(self):
         """
@@ -98,5 +99,5 @@ class BaseCaptureThread(Thread, ABC):
             print(e)
 
         finally:
-            self.data_to_export = list(self.captured_tracking_data)
+            self.data_to_export = dict(self.captured_tracking_data)
             self.cleanup()
