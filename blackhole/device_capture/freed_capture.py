@@ -89,7 +89,7 @@ class FreeDPacket:
         sum_remaining = 0x40
 
         for byte in self.packetBytes:
-            sum_remaining = (sum_remaining - byte) & 0x3  # Take mod 256 each time
+            sum_remaining = (sum_remaining - byte) & 0xFF  # Take mod 256 each time
 
         return sum_remaining == 0
 
