@@ -56,25 +56,31 @@ class Recording(Thread):
 
     def start_capturing_data(self):
         capture_threads = []
+        devices = set()
 
-        for deviceName in self._device_config.sections():
+        for device_name in self._device_config.sections():
+            # Only allow recording to start if all device names are unique
+            if device_name in devices:
+                raise ValueError(f"Duplicate device name found in configs: {device_name}. ")
+            thread_devices.add(device_name)
+
             try:
-                discovered_port = int(self._device_config[deviceName]["PORT"])
-                protocol = self._device_config[deviceName]["TRACKING_PROTOCOL"]
+                discovered_port = int(self._device_config[device_name]["PORT"])
+                protocol = self._device_config[device_name]["TRACKING_PROTOCOL"]
             except KeyError as e:
                 logger.error(f"Can't find key {e}, skipping. \n-----> Please add {e} to "
-                             f"blackhole_config/device_config.ini under the section labled {deviceName}")
+                             f"blackhole_config/device_config.ini under the section labled {device_name}")
                 continue
 
             try:
                 capture_module = importlib.import_module(f"blackhole.device_capture.{protocol.lower()}_capture")
                 capture_thread_class = getattr(capture_module, "{0}CaptureThread".format(protocol))
-                capture_thread_instance = capture_thread_class(self.frame_rate, deviceName, discovered_port,
+                capture_thread_instance = capture_thread_class(self.frame_rate, device_name, discovered_port,
                                                                self._stop_event)
 
                 capture_threads.append(capture_thread_instance)
             except socket.gaierror:
-                logger.error(f"Tracking thread for device '{deviceName}' can't bind socket to Port={discovered_port}."
+                logger.error(f"Tracking thread for device '{device_name}' can't bind socket to Port={discovered_port}."
                              "\n-----> Please check that blackhole_config/device_config.ini has the correct port "
                              "assigned for the device, and that another socket is not already listening on that port.")
                 continue
@@ -87,7 +93,9 @@ class Recording(Thread):
         device_capture_data = {}
         for thread in capture_threads:
             thread.join()
-            device_capture_data[thread.device_name] = thread.data_to_export
+
+            for device_name, values in thread.data_to_export:
+                device_capture_data[device_name] = values
 
         return device_capture_data
 
@@ -97,7 +105,7 @@ class Recording(Thread):
 
         if take:
             sub_usd_threads = []
-            for device_name, captureData in device_capture_dict.items():
+            for device_name, capture_data in device_capture_dict.items():
                 sub_archive_path = pathlib.Path(self.archive_path, "cameras", device_name, f'{device_name}.usda')
                 archiver = UsdArchiver(
                     sub_archive_path,
@@ -107,7 +115,7 @@ class Recording(Thread):
                     take.timecode_in_frames,
                     take.timecode_out_frames,
                     take.map,
-                    captureData
+                    capture_data
                 )
                 sub_usd_threads.append(archiver)
 
