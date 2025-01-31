@@ -96,13 +96,15 @@ class FreeDPacket:
         return sum_remaining == 0
 
 
-class FreeDCaptureThreadRefactor(MultiDeviceCaptureThread):
+class FreeDCaptureThread(MultiDeviceCaptureThread):
     def __init__(self, frame_rate: int, port: int, stop_event: Event, device_configs=None):
-        super.__init__(frame_rate, device_configs, port, stop_event)
+        super().__init__(frame_rate, port, stop_event, device_configs)
 
         self.id_mapping = {}
-        for device_name, config in device_configs:
-            self.id_mapping[config["CAMERA_ID"]] = device_name
+
+        if self.device_configs is not None:
+            for device_name, config in self.device_configs.items():
+                self.id_mapping[int(config["CAMERA_ID"])] = device_name
 
     @property
     def packet_size(self):
@@ -158,6 +160,10 @@ class FreeDCaptureThreadRefactor(MultiDeviceCaptureThread):
 
         return (id, data)
 
+    def __str__(self):
+        names = [name for _, name in self.id_mapping.items()]
+        return f"{','.join(names)} on port {self.port} at frame rate {self.frame_rate}"
+
     def parse_packet(self, packet_bytes):
         if packet_bytes[0:1] == b"\xd1":
             transform_packet_object = FreeDPacket(packet_bytes)
@@ -181,75 +187,6 @@ class FreeDCaptureThreadRefactor(MultiDeviceCaptureThread):
             data_for_device = self.captured_tracking_data.setdefault(device_name, [])
             data_for_device.append(transform_data)
 
-
-class FreeDCaptureThread(BaseCaptureThread):
-    @property
-    def packet_size(self):
-        return FREED_PACKET_SIZE
-
-    @property
-    def protocol(self):
-        return FREED_PROTOCOL_LABEL
-
-    def package_frame_data(self, packet: FreeDPacket):
-        data = dict()
-
-        # Convert the camera transform from FreeD's conventions to USD.
-        #
-        # The FreeD protocol uses a right-handed coordinate space with +Z up, +Y forward, +X right. Positions are 
-        # measured in millimeters.
-        # 
-        # USD also uses a right-handed coordinate space, but with +Y as up, -Z as forward, and +X as right (unless
-        # configured otherwise). Positions are measured in centimeters (unless configured otherwise).
-        #
-        # FreeD departs from right-handed coordinate system conventions by having positive pan direction be clockwise
-        # rather than counterclockwise.
-        #
-        # Unreal FRotators actually use the same positive rotation direction conventions as FreeD, so in a direct
-        # conversion between the two the only change to the transform would be swapping the X and Y axes.
-        #
-        # When Unreal converts USD cameras it subtracts a 90 degree yaw rotation because USD cameras use -Z as their
-        # local forward while Unreal cameras use +X. So, we add a 90 degree yaw rotation to the FreeD rotation to
-        # compensate for this.
-        #
-        # In a scenario where we’ve recorded a camera’s motion into a level sequence in Unreal while simultaneously
-        # recording a USD of that same camera in Blackhole, this step will ensure that when we import the USD camera
-        # track into Unreal, it matches the orientation of the camera track in the level sequence.
-        #
-        # Note that tilt, pan, and roll are equivalent to pitch, yaw, and roll, respectively.
-        #
-        # References:
-        # - https://www.manualsdir.com/manuals/641433/vinten-radamec-free-d.html?page=40
-        # - Unreal Engine USDImporter plugin code, USDPrimConversion.cpp, function UsdToUnreal::ConvertXformable(),
-        #   lines 329-386
-        data[TRACKING_X] = packet.pos_y / 10.0
-        data[TRACKING_Y] = packet.pos_z / 10.0
-        data[TRACKING_Z] = packet.pos_x / 10.0
-
-        data[TRACKING_PITCH] = packet.rot_tilt
-        data[TRACKING_YAW] = -(packet.rot_pan + 90)
-        data[TRACKING_ROLL] = packet.rot_roll
-
-        data[TRACKING_TIMECODE_KEY] = utils.get_system_timecode_as_frames(self.frame_rate)
-
-        return data
-
-    def parse_packet(self, packet_bytes):
-        if packet_bytes[0:1] == b"\xd1":
-            transform_packet_object = FreeDPacket(packet_bytes)
-            logger.info(transform_packet_object)
-
-            return transform_packet_object
-        else:
-            return None
-
-    def validate_parsed_data(self, parsed_packet):
-        if parsed_packet is None or not isinstance(parsed_packet, FreeDPacket):
-            return False
-        else:
-            return parsed_packet.checksum_valid()
-
-    def cache_parsed_data(self, parsed_packet):
-        transform_data = self.package_frame_data(parsed_packet)
-        captured_data = self.captured_tracking_data.setdefault(self.device_name, [])
-        captured_data.append(transform_data)
+    def add_device_config(self, device_name: str, config: dict[str,str]):
+        super().add_device_config(device_name, config)
+        self.device_configs[device_name] = config

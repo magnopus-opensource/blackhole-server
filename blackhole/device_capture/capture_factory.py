@@ -51,6 +51,8 @@ class CaptureThreadFactory:
                     capture_thread_class = getattr(capture_module, f"{protocol}CaptureThread")
 
                     if issubclass(capture_thread_class, MultiDeviceCaptureThread):
+                        print("NEW THREAD: ")
+                        print(config)
                         capture_thread_instance = capture_thread_class(frame_rate, port, stop_event, { device_name : config })
                     else:
                         # First step is just making sure that things will still work when we force use of the original 

@@ -60,6 +60,8 @@ class Recording(Thread):
     def start_capturing_data(self):
         capture_threads = []
 
+        print(self._device_config.sections())
+
         configs = {
             device_name : dict(self._device_config[device_name]) for device_name in self._device_config.sections()
         }
@@ -68,7 +70,7 @@ class Recording(Thread):
         capture_threads = CaptureThreadFactory.create_capture_threads(configs, self.frame_rate, self._stop_event)
 
         for thread in capture_threads:
-            logger.info(f"Beginning capture of {thread.device_name} for Slate: {self.slate}, Take: {self.take_number}")
+            logger.info(f"Beginning capture of {thread} for Slate: {self.slate}, Take: {self.take_number}")
             thread.start()
 
         # The threads will stop once the stopEvent we gave them is set by the RecordingSessionManager
