@@ -18,9 +18,11 @@ import logging
 import pathlib
 import socket
 from threading import Thread, Event
+from typing import Any
 
 import blackhole.database_utils as utils
 from blackhole.models import *
+from blackhole.device_capture.capture_factory import CaptureThreadFactory
 from blackhole.usd_export import UsdArchiver, USDMasterStageArchiver
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ class Recording(Thread):
         self._stopped_capture_callback = stop_callback
 
         self._device_config = configparser.ConfigParser()
+        self._device_config.optionxform = lambda option: option
         self._device_config.read("blackhole_config/device_config.ini")
 
         self.archive_path = pathlib.Path(utils.get_base_archive_path(), self.slate, str(self.take_number))
@@ -56,34 +59,13 @@ class Recording(Thread):
 
     def start_capturing_data(self):
         capture_threads = []
-        devices = set()
 
-        for device_name in self._device_config.sections():
-            # Only allow recording to start if all device names are unique
-            if device_name in devices:
-                raise ValueError(f"Duplicate device name found in configs: {device_name}. ")
-            thread_devices.add(device_name)
+        configs = {
+            device_name : dict(self._device_config[device_name]) for device_name in self._device_config.sections()
+        }
 
-            try:
-                discovered_port = int(self._device_config[device_name]["PORT"])
-                protocol = self._device_config[device_name]["TRACKING_PROTOCOL"]
-            except KeyError as e:
-                logger.error(f"Can't find key {e}, skipping. \n-----> Please add {e} to "
-                             f"blackhole_config/device_config.ini under the section labled {device_name}")
-                continue
-
-            try:
-                capture_module = importlib.import_module(f"blackhole.device_capture.{protocol.lower()}_capture")
-                capture_thread_class = getattr(capture_module, "{0}CaptureThread".format(protocol))
-                capture_thread_instance = capture_thread_class(self.frame_rate, device_name, discovered_port,
-                                                               self._stop_event)
-
-                capture_threads.append(capture_thread_instance)
-            except socket.gaierror:
-                logger.error(f"Tracking thread for device '{device_name}' can't bind socket to Port={discovered_port}."
-                             "\n-----> Please check that blackhole_config/device_config.ini has the correct port "
-                             "assigned for the device, and that another socket is not already listening on that port.")
-                continue
+        print(configs)
+        capture_threads = CaptureThreadFactory.create_capture_threads(configs, self.frame_rate, self._stop_event)
 
         for thread in capture_threads:
             logger.info(f"Beginning capture of {thread.device_name} for Slate: {self.slate}, Take: {self.take_number}")
@@ -94,7 +76,7 @@ class Recording(Thread):
         for thread in capture_threads:
             thread.join()
 
-            for device_name, values in thread.data_to_export:
+            for device_name, values in thread.data_to_export.items():
                 device_capture_data[device_name] = values
 
         return device_capture_data

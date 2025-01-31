@@ -136,13 +136,15 @@ class MultiDeviceCaptureThread(BaseCaptureThreadRefactor, ABC):
 #---------- OLD VERSION ------------------------------------------------
 
 class BaseCaptureThread(Thread, ABC):
+    protocol = None
+
     def __init__(self, frame_rate: int, device_name: str, port: int, stop_event: Event):
         super().__init__()
 
         self.device_name = device_name
         self.frame_rate = frame_rate
 
-        self.captured_tracking_data = []
+        self.captured_tracking_data = {}
         self.data_to_export = None
 
         self.stop_event = stop_event
@@ -150,7 +152,7 @@ class BaseCaptureThread(Thread, ABC):
         try:
             self.listening_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.listening_socket.bind(("", port))
-
+            print("BOUND")
         except socket.gaierror as e:
             raise ConnectionError(f"Failed to resolve capture thread UDP connection on port {port}") from e
 
@@ -160,6 +162,14 @@ class BaseCaptureThread(Thread, ABC):
         """
         Property expressing the size of packets sent over the network by the hardware. Must be
         defined by subclasses.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def protocol(self):
+        """
+        Property defining the protocol the thread is expecting. Must be defined by subclasses.
         """
         pass
 
@@ -202,7 +212,7 @@ class BaseCaptureThread(Thread, ABC):
 
                 for sock in ready:
                     packet = sock.recv(self.packet_size)
-
+                    print("RECEVIED")
                     tracking_data = self.parse_packet(packet)
 
                     if self.validate_parsed_data(tracking_data):

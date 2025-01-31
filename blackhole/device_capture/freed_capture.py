@@ -14,6 +14,7 @@
 
 from .base_capture import BaseCaptureThread, MultiDeviceCaptureThread, logger
 from blackhole.constants import *
+from threading import Event
 import blackhole.database_utils as utils
 import struct
 
@@ -175,8 +176,8 @@ class FreeDCaptureThreadRefactor(MultiDeviceCaptureThread):
     def cache_parsed_data(self, parsed_packet):
         id, transform_data = self.package_frame_data(parsed_packet)
 
-        if id in id_mapping:
-            device_name = id_mapping[id]
+        if id in self.id_mapping:
+            device_name = self.id_mapping[id]
             data_for_device = self.captured_tracking_data.setdefault(device_name, [])
             data_for_device.append(transform_data)
 
@@ -185,6 +186,10 @@ class FreeDCaptureThread(BaseCaptureThread):
     @property
     def packet_size(self):
         return FREED_PACKET_SIZE
+
+    @property
+    def protocol(self):
+        return FREED_PROTOCOL_LABEL
 
     def package_frame_data(self, packet: FreeDPacket):
         data = dict()
@@ -246,4 +251,5 @@ class FreeDCaptureThread(BaseCaptureThread):
 
     def cache_parsed_data(self, parsed_packet):
         transform_data = self.package_frame_data(parsed_packet)
-        self.captured_tracking_data.append(transform_data)
+        captured_data = self.captured_tracking_data.setdefault(self.device_name, [])
+        captured_data.append(transform_data)
